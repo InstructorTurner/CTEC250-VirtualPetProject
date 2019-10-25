@@ -37,15 +37,23 @@ namespace ExcitingVirtualPet
         int currentWater;
         int catStartEating;
         int catStartDrinking;
+        bool catEating = false;
+        bool catDrinking = false;
 
-        int frame;
-
-        Timer catHungerTimer;
-        Timer catThirstTimer;
-        Timer catBoredomTimer;
-        Timer catAffectionTimer;
-        Timer catEatTimer;
-        Timer catDrinkTimer;
+        //Time Stuff
+        Timer mainLoopTimer;
+        int hungerFrame;
+        int thirstFrame;
+        int boredomFrame;
+        int affectionFrame;
+        int eatFrame;
+        int drinkFrame;
+        int hungerCounter;
+        int thirstCounter;
+        int boredomCounter;
+        int affectionCounter;
+        int eatCounter;
+        int drinkCounter;
 
         Random generator;
 
@@ -58,8 +66,68 @@ namespace ExcitingVirtualPet
             InitializeCat();
             InitializeFood();
             InitializeWater();
-            InitializeTimers();
+            InitializeFrames();
+
+            //set up loop
+            mainLoopTimer = new Timer();
+            mainLoopTimer.Interval = 16; //runs every 60th of a second
+            mainLoopTimer.Tick += MainLoopTimer_Tick; //run MainLoopTimer_Tick method every 60th of a second
+            mainLoopTimer.Start(); //start the main loop
+        }
+
+        private void MainLoopTimer_Tick(object sender, EventArgs e)
+        {
+            //increase frame counters
+            increaseNeedCounters();
             
+            //How Frame Counters Work
+            //The fame counters "count" every tick of the main loop timer.
+            //Once the counter reaches a frame (like hungerFrame), the cat
+            //performs that action.  This way we can have 1 timer and multiple
+            //actions that can be performed.  Once the count reaches the frame,
+            //we also need to remember to reset the counter for the next time.
+
+            //update cat needs
+            if (hungerCounter >= hungerFrame)
+            {
+                increaseHunger();
+                
+            }
+            if(thirstCounter >= thirstFrame)
+            {
+                increaseThirst();
+                
+            }
+            if(affectionCounter >= affectionFrame)
+            {
+                decreaseAffection();
+                
+            }
+            if(boredomCounter >= boredomFrame)
+            {
+                increaseBoredom();
+                
+            }
+            //update cat need fulfillment
+            if (catDrinking)
+            {
+                drinkCounter++;
+                if(drinkCounter >= drinkFrame)
+                {
+                    tryToDrink();
+                }
+            }
+            if (catEating)
+            {
+                eatCounter++;
+                if (eatCounter >= eatFrame)
+                {
+                    tryToEat();
+                }
+            }
+
+            //check game loss condition
+            maybeTakeCatAway();
 
             //update view
             UpdateView();
@@ -76,34 +144,27 @@ namespace ExcitingVirtualPet
 
             catStartEating = 6;
             catStartDrinking = 6;
+
+            catEating = false;
+            catDrinking = false;
         }
-        private void InitializeTimers()
+        private void InitializeFrames()
         {
-            catHungerTimer = new Timer();
-            catThirstTimer = new Timer();
-            catBoredomTimer = new Timer();
-            catAffectionTimer = new Timer();
-            catEatTimer = new Timer();
-            catDrinkTimer = new Timer();
+            //set these to somewhat random amounts so the cat gets hungry/thirsty at different rates
+            hungerFrame = generator.Next(120, 600);
+            thirstFrame = generator.Next(120, 600);
+            boredomFrame = generator.Next(120, 600);
+            affectionFrame = generator.Next(120, 600);
+            //cat eats and drinks 1 unit per second
+            eatFrame = 60;
+            drinkFrame = 60;
 
-            catHungerTimer.Tick += increaseHunger;
-            catAffectionTimer.Tick += decreaseAffection;
-            catThirstTimer.Tick += increaseThirst;
-            catBoredomTimer.Tick += increaseBoredom;
-            catEatTimer.Tick += tryToEat;
-            catDrinkTimer.Tick += tryToDrink;
-
-            catHungerTimer.Interval = generator.Next(2000, 10000);
-            catThirstTimer.Interval = generator.Next(2000, 10000);
-            catBoredomTimer.Interval = generator.Next(2000, 10000);
-            catAffectionTimer.Interval = generator.Next(2000, 10000);
-            catEatTimer.Interval = 1000;
-            catDrinkTimer.Interval = 1000;
-
-            catHungerTimer.Start();
-            catThirstTimer.Start();
-            catBoredomTimer.Start();
-            catAffectionTimer.Start();
+            //initialize the starter counters to 0
+            hungerCounter = 0;
+            thirstCounter = 0;
+            affectionCounter = 0;
+            eatCounter = 0;
+            drinkCounter = 0;
         }
         private void InitializeFood()
         {
@@ -113,45 +174,47 @@ namespace ExcitingVirtualPet
         {
             currentWater = 1;
         }
-
-        private void increaseHunger(Object o, EventArgs e)
+        private void increaseNeedCounters()
+        {
+            hungerCounter++;
+            thirstCounter++;
+            affectionCounter++;
+            boredomCounter++;
+        }
+        private void increaseHunger()
         {
             if (catHunger < MAX_HUNGER) catHunger++;
 
-            if (catHunger > catStartEating) catEatTimer.Start();
+            if (catHunger > catStartEating) catEating = true;
 
-            maybeTakeCatAway();
-
-            UpdateView();
+            //reset frame counter
+            hungerCounter = 0;
         }
-        private void increaseThirst(Object o, EventArgs e)
+        private void increaseThirst()
         {
             if (catThirst < MAX_THIRST) catThirst++;
 
-            if (catThirst > catStartDrinking) catDrinkTimer.Start();
+            if (catThirst > catStartDrinking) catDrinking = true;
 
-            maybeTakeCatAway();
-
-            UpdateView();
+            //reset frame counter
+            thirstCounter = 0;
         }
-        private void increaseBoredom(Object o, EventArgs e)
+        private void increaseBoredom()
         {
             if (catBoredom < MAX_BOREDOM) catBoredom++;
 
-            maybeTakeCatAway();
-
-            UpdateView();
+            //reset frame counter
+            boredomCounter = 0;
         }
-        private void decreaseAffection(Object o, EventArgs e)
+        private void decreaseAffection()
         {
             if (catAffection > MIN_AFFECTION) catAffection--;
 
-            maybeTakeCatAway();
-
-            UpdateView();
+            //reset frame counter
+            affectionCounter = 0;
         }
 
-        private void tryToDrink(Object o, EventArgs e)
+        private void tryToDrink()
         {
             if(currentWater > MIN_WATER)
             {
@@ -159,11 +222,12 @@ namespace ExcitingVirtualPet
                 catThirst--;
             }
 
-            if (catThirst == MIN_THIRST || currentWater == MIN_WATER) catDrinkTimer.Stop();
+            if (catThirst == MIN_THIRST || currentWater == MIN_WATER) catDrinking = false;
 
-            UpdateView();
+            //reset frame counter
+            drinkCounter = 0;
         }
-        private void tryToEat(Object o, EventArgs e)
+        private void tryToEat()
         {
             if (currentFood > MIN_FOOD)
             {
@@ -171,34 +235,30 @@ namespace ExcitingVirtualPet
                 catHunger--;
             }
 
-            if (catHunger == MIN_HUNGER || currentFood == MIN_FOOD) catEatTimer.Stop();
+            if (catHunger == MIN_HUNGER || currentFood == MIN_FOOD) catEating = false;
 
-            UpdateView();
+            //reset frame counter
+            eatCounter = 0;
         }
         private void maybeTakeCatAway()
         {
+            //if you've really not taken care of your cat...
             if(catHunger == MAX_HUNGER && catThirst == MAX_THIRST && catBoredom == MAX_BOREDOM && catAffection == MIN_AFFECTION)
             {
                 //replace image with lack of cat
                 petPictureBox.Image = Properties.Resources.cat_leaving;
-                //stop timers
-                stopAllTimers();
+                
                 //disable buttons
                 feedCatButton.Enabled = false;
                 catWaterButton.Enabled = false;
                 catPlayButton.Enabled = false;
                 petCatButton.Enabled = false;
+
+                //stop main loop
+                mainLoopTimer.Stop();
             }
         }
-        private void stopAllTimers()
-        {
-            catHungerTimer.Stop();
-            catThirstTimer.Stop();
-            catBoredomTimer.Stop();
-            catAffectionTimer.Stop();
-            catEatTimer.Stop();
-            catDrinkTimer.Stop();
-        }
+
 
         private void UpdateView()
         {
@@ -217,7 +277,6 @@ namespace ExcitingVirtualPet
             {
                 currentFood++;
             }
-            UpdateView();
         }
 
         private void catWaterButton_Click(object sender, EventArgs e)
@@ -226,7 +285,6 @@ namespace ExcitingVirtualPet
             {
                 currentWater++;
             }
-            UpdateView();
         }
 
         private void catPlayButton_Click(object sender, EventArgs e)
@@ -235,7 +293,6 @@ namespace ExcitingVirtualPet
             {
                 catBoredom--;
             }
-            UpdateView();
         }
 
         private void petCatButton_Click(object sender, EventArgs e)
@@ -244,7 +301,6 @@ namespace ExcitingVirtualPet
             {
                 catAffection++;
             }
-            UpdateView();
         }
     }
 }
